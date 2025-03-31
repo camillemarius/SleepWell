@@ -36,8 +36,8 @@ EndBSPDependencies */
 /* Private functions ---------------------------------------------------------*/
 
 #define STORAGE_LUN_NBR                  1U
-#define STORAGE_BLK_NBR                  0x10000U
-#define STORAGE_BLK_SIZ                  0x200U
+#define STORAGE_BLK_NBR                  33554432//(0x40000)  // Anzahl der Blöcke
+#define STORAGE_BLK_SIZ                  (512)      // Blockgröße in Byte
 
 int8_t STORAGE_Init(uint8_t lun);
 

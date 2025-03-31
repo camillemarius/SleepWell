@@ -22,6 +22,9 @@
 #include "usbd_storage_if.h"
 
 /* USER CODE BEGIN INCLUDE */
+    #include "ff_gen_drv.h"
+    #include "user_diskio.h"  // Include your disk I/O driver header
+    #include "user_diskio_spi.h"
 
 /* USER CODE END INCLUDE */
 
@@ -62,12 +65,11 @@
   * @{
   */
 
-#define STORAGE_LUN_NBR                  1
-#define STORAGE_BLK_NBR                  30//0x10000
-#define STORAGE_BLK_SIZ                  0x200
+#define STORAGE_LUN_NBR                   1
+#define STORAGE_BLK_NBR                   33554432  //(0x40000)  // Anzahl der Blöcke
+#define STORAGE_BLK_SIZ                   (512)      // Blockgröße in Byte
 
 /* USER CODE BEGIN PRIVATE_DEFINES */
-uint8_t buffer[STORAGE_BLK_NBR*STORAGE_BLK_SIZ]; // 100kByte Buffer
 
 /* USER CODE END PRIVATE_DEFINES */
 
@@ -178,7 +180,23 @@ USBD_StorageTypeDef USBD_Storage_Interface_fops_FS =
 int8_t STORAGE_Init_FS(uint8_t lun)
 {
   /* USER CODE BEGIN 2 */
-  return (USBD_OK);
+  USBD_StatusTypeDef ret = USBD_FAIL;
+  	  if(USER_SPI_initialize(0) == 0){
+	  ret = USBD_OK;
+  }
+ 
+  return ret;
+
+
+
+
+  /* Initialize the SPI-based storage (SD card, Flash, etc.) */
+  //if (disk_initialize(0) != RES_OK)
+  //{
+  //  return USBD_FAIL;  // Return failure if storage initialization fails
+  //}
+
+  //return (USBD_OK);
   /* USER CODE END 2 */
 }
 
@@ -192,6 +210,32 @@ int8_t STORAGE_Init_FS(uint8_t lun)
 int8_t STORAGE_GetCapacity_FS(uint8_t lun, uint32_t *block_num, uint16_t *block_size)
 {
   /* USER CODE BEGIN 3 */
+
+   // Assuming you are using FatFS and the SD card is already initialized
+  //FATFS* fs;  // FatFS file system object
+  //DWORD free_clusters, total_clusters;
+  
+  // Assuming you're using the SD card interface provided in your project:
+  //FRESULT res = f_getfree("", &free_clusters, &fs);
+  ////{
+    // Retrieve the block size (sector size) from the FatFS structure
+    //*block_size = fs->csize * 512;  // csize is the cluster size in sectors, multiply by sector size
+
+    // Calculate the total number of blocks (sector count)
+    //total_clusters = fs->n_fatent - 2;  // Number of clusters in the file system, subtract reserved entries
+    //*block_num = total_clusters * fs->csize;  // Multiply by sectors per cluster to get total block number
+    
+   // return USBD_OK;  // Operation successful
+  //}
+  //else
+  //{
+    //return USBD_FAIL;  // Error, couldn't get disk info
+  //}
+
+
+
+
+
   *block_num  = STORAGE_BLK_NBR;
   *block_size = STORAGE_BLK_SIZ;
   return (USBD_OK);
@@ -206,7 +250,16 @@ int8_t STORAGE_GetCapacity_FS(uint8_t lun, uint32_t *block_num, uint16_t *block_
 int8_t STORAGE_IsReady_FS(uint8_t lun)
 {
   /* USER CODE BEGIN 4 */
-  return (USBD_OK);
+  USBD_StatusTypeDef ret = USBD_FAIL;
+  if(USER_SPI_status(0) == 0){
+    ret = USBD_OK;
+  }
+  return ret;
+
+
+
+
+  //return (USBD_OK);
   /* USER CODE END 4 */
 }
 
@@ -230,8 +283,21 @@ int8_t STORAGE_IsWriteProtected_FS(uint8_t lun)
 int8_t STORAGE_Read_FS(uint8_t lun, uint8_t *buf, uint32_t blk_addr, uint16_t blk_len)
 {
   /* USER CODE BEGIN 6 */
-  memcpy(buf, &buffer[blk_addr * STORAGE_BLK_SIZ], blk_len*STORAGE_BLK_SIZ);
-  return (USBD_OK);
+  USBD_StatusTypeDef ret = USBD_FAIL;
+  if(USER_SPI_read(0, buf, blk_addr,blk_len) == 0)
+	ret = USBD_OK;
+  return ret;
+
+
+
+
+  //if (USER_read(0, buf, blk_addr, blk_len) != RES_OK)
+  //{
+  //  return USBD_FAIL;  // Return failure if read operation fails
+  //}
+
+
+  //return (USBD_OK);
   /* USER CODE END 6 */
 }
 
@@ -243,9 +309,23 @@ int8_t STORAGE_Read_FS(uint8_t lun, uint8_t *buf, uint32_t blk_addr, uint16_t bl
 int8_t STORAGE_Write_FS(uint8_t lun, uint8_t *buf, uint32_t blk_addr, uint16_t blk_len)
 {
   /* USER CODE BEGIN 7 */
+  /* Write data to SPI-based storage (SD/Flash) */
+  USBD_StatusTypeDef ret = USBD_FAIL;
+  if(USER_SPI_write(0, buf, blk_addr,blk_len) == 0)
+	ret = USBD_OK;
+  return ret;
   
-  memcpy(&buffer[blk_addr * STORAGE_BLK_SIZ], buf, blk_len*STORAGE_BLK_SIZ);
-  return (USBD_OK);
+  
+  
+  
+  
+  //if (USER_write(0, buf, blk_addr, blk_len) != RES_OK)
+  //{
+  //  return USBD_FAIL;  // Return failure if write operation fails
+  //}
+
+  
+  //return (USBD_OK);
   /* USER CODE END 7 */
 }
 

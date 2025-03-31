@@ -110,7 +110,7 @@ int main(void)
 
       HAL_Delay(1000); //a short delay is important to let the SD card settle
 
-      SDCard_AccelOperations();
+      //SDCard_AccelOperations();
 
 
 
@@ -128,10 +128,10 @@ int main(void)
         //AccelData data = {1.23f, 4.56f, 7.89f};
 
         // Write the accelerometer data with timestamp to the SD card
-        bool status = SDCard_WriteAccelData();
-        if(status != false) {
-          ;
-        }
+        //bool status = SDCard_WriteAccelData();
+        //if(status != false) {
+        //  ;
+        //}
 
   }
   /* USER CODE END 3 */
@@ -284,15 +284,29 @@ static void MX_GPIO_Init(void)
 /* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
-  __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOF_CLK_ENABLE();
   __HAL_RCC_GPIOC_CLK_ENABLE();
+  __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOC, IO_LED2_Pin|IO_VIBRATOR_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(SPI1_SD_CS_GPIO_Port, SPI1_SD_CS_Pin, GPIO_PIN_SET);
 
-  /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(IO_VIBRATOR_GPIO_Port, IO_VIBRATOR_Pin, GPIO_PIN_RESET);
+  /*Configure GPIO pin : IO_LED1_Pin */
+  GPIO_InitStruct.Pin = IO_LED1_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(IO_LED1_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : IO_LED2_Pin IO_VIBRATOR_Pin */
+  GPIO_InitStruct.Pin = IO_LED2_Pin|IO_VIBRATOR_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
   /*Configure GPIO pins : Taster_EXTI0_Pin UVLO_CTR_EXTI8_Pin */
   GPIO_InitStruct.Pin = Taster_EXTI0_Pin|UVLO_CTR_EXTI8_Pin;
@@ -306,13 +320,6 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(SPI1_SD_CS_GPIO_Port, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : IO_VIBRATOR_Pin */
-  GPIO_InitStruct.Pin = IO_VIBRATOR_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(IO_VIBRATOR_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pins : BATTERY_ALERT_EXTI9_Pin BATTERY_CHARGING_EXTI10_Pin */
   GPIO_InitStruct.Pin = BATTERY_ALERT_EXTI9_Pin|BATTERY_CHARGING_EXTI10_Pin;
