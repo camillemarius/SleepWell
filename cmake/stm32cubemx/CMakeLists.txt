@@ -33,6 +33,7 @@ target_sources(stm32cubemx INTERFACE
     ../../Core/Src/sensors/adxl345.c
     ../../Core/Src/memory/sd_card.c
     ../../FATFS/Target/user_diskio_spi.c
+    ../../Core/Src/button/button.c
 
     ../../Core/Src/stm32g4xx_it.c
     ../../Core/Src/stm32g4xx_hal_msp.c

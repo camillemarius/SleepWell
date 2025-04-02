@@ -29,6 +29,9 @@
 //SD-Card
 #include "sd_card.h"
 
+//button
+#include "button.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -106,7 +109,7 @@ int main(void)
   }
   MX_USB_Device_Init();
   /* USER CODE BEGIN 2 */
-      //ADXL_Init();  // initialize adxl
+      ADXL_Init();  // initialize adxl
 
       HAL_Delay(1000); //a short delay is important to let the SD card settle
 
@@ -123,15 +126,35 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-        HAL_Delay (5000);
+        HAL_Delay (50);
         // Create an accelerometer reading example
         //AccelData data = {1.23f, 4.56f, 7.89f};
 
+        
+
+
+        /*switch( getButtonEvent() )
+        {
+            case NO_PRESS :     { ... } break ;
+            case SINGLE_PRESS : { ... } break ;
+            case LONG_PRESS :   { ... } break ;
+            case DOUBLE_PRESS : { ... } break ;
+        }*/
+
+
+      button_systick();
+      
+      static vibration_functions_t vibration_function = VIBRATION_STATE_NONE;
+      getButtonState(&vibration_function);
+      if(vibration_function == VIBRATION_STATE_SHORT) {
         // Write the accelerometer data with timestamp to the SD card
-        //bool status = SDCard_WriteAccelData();
-        //if(status != false) {
-        //  ;
-        //}
+        bool status = SDCard_WriteAccelData();
+        if(status != false) {
+          ;
+        }
+      } else if (vibration_function == VIBRATION_STATE_DOUBLE) {
+        ;
+      }
 
   }
   /* USER CODE END 3 */

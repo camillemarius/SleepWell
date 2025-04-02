@@ -22,6 +22,7 @@
 #include "stm32g4xx_it.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+    #include "button.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -204,8 +205,7 @@ void SysTick_Handler(void)
 void EXTI0_IRQHandler(void)
 {
   /* USER CODE BEGIN EXTI0_IRQn 0 */
-    HAL_GPIO_TogglePin(IO_VIBRATOR_GPIO_Port, IO_VIBRATOR_Pin);
-
+      HAL_GPIO_EXTI0_Callback(0);
   /* USER CODE END EXTI0_IRQn 0 */
   HAL_GPIO_EXTI_IRQHandler(Taster_EXTI0_Pin);
   /* USER CODE BEGIN EXTI0_IRQn 1 */

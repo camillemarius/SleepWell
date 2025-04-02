@@ -161,22 +161,29 @@ void ADXL345_InterruptHandler(void)
 
     // Verarbeite die Daten und prüfe z.B. den X-Wert
     int16_t RAWX = ((RxData[1] << 8) | RxData[0]);
-    //int16_t RAWY = ((RxData[3] << 8) | RxData[2]);
-    //int16_t RAWZ = ((RxData[5] << 8) | RxData[4]);
+    int16_t RAWY = ((RxData[3] << 8) | RxData[2]);
+    int16_t RAWZ = ((RxData[5] << 8) | RxData[4]);
 
     // Umrechnung der Rohdaten in 'g' (Beschleunigung)
-    //foat xg = RAWX * 0.0078;
-    //foat yg = RAWY * 0.0078;
-    //foat zg = RAWZ * 0.0078;
+    float xg = RAWX * 0.0078;
+    float yg = RAWY * 0.0078;
+    float zg = RAWZ * 0.0078;
+
+
+    // Calculate pitch and roll
+    float pitch = atan2(yg, sqrt(xg * xg + zg * zg)) * (180.0f / M_PI);
+    float roll = atan2(xg, sqrt(yg * yg + zg * zg)) * (180.0f / M_PI);  
 
     // Überprüfe, ob der X-Wert den Schwellenwert überschreitet
-    if (RAWX > 90 || RAWX < -90)
+    if (roll > 40 || roll < -40)
     {
     // Beispiel: Schalte eine LED oder setze eine andere Aktion
         //HAL_GPIO_WritePin(LED1_Output_GPIO_Port, LED1_Output_Pin, GPIO_PIN_RESET);
+        HAL_GPIO_WritePin(IO_VIBRATOR_GPIO_Port, IO_VIBRATOR_Pin, GPIO_PIN_RESET);
     } else {
 
         //HAL_GPIO_WritePin(LED1_Output_GPIO_Port, LED1_Output_Pin, GPIO_PIN_SET);
+        HAL_GPIO_WritePin(IO_VIBRATOR_GPIO_Port, IO_VIBRATOR_Pin, GPIO_PIN_SET);
     }
 
     // Lese das Interrupt-Source-Register, um das Interrupt-Flag zu löschen
