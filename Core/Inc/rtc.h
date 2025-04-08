@@ -1,19 +1,18 @@
-#ifndef __ADXL345_H
-#define __ADXL345_H
+#ifndef __RTC_H
+#define __RTC_H
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 /* Includes ------------------------------------------------------------------*/
-#include <stdint.h>
-#include <stddef.h>
+
 #include "main.h"
 /* Private includes ----------------------------------------------------------*/
 
 
 /* Exported types ------------------------------------------------------------*/
-extern I2C_HandleTypeDef hi2c1;
+extern RTC_HandleTypeDef hrtc;
 
 /* Exported constants --------------------------------------------------------*/
 
@@ -22,21 +21,16 @@ extern I2C_HandleTypeDef hi2c1;
 
 
 /* Exported functions prototypes ---------------------------------------------*/
+#include "rtc.h"
+#include <stdio.h>
 
+void rtc_set_time_from_compile();
+void rtc_get_time_date(char *time, char *date);
+void rtc_set_date (uint8_t year, uint8_t month, uint8_t date, uint8_t day);
+void rtc_set_time (uint8_t hr, uint8_t min, uint8_t sec);
+void rtc_set_alarm (uint8_t hr, uint8_t min, uint8_t sec, uint8_t date);
 
 /* Private defines -----------------------------------------------------------*/
-static void adxl_write_reg (uint8_t Reg, uint8_t Byte);
-static void adxl_read (uint8_t Reg, uint8_t *Buffer, size_t len);
-
-void adxl_init (void);
-void adxl_enable();
-void adxl_disable();
-void adxl_getXYZ(float *x, float *y, float *z);
-void adxl_getAngle(float *pitch, float *roll);
-void EXTI9_5_IRQHandler_Callback(void);
-
-
-
 
 #ifdef __cplusplus
 }

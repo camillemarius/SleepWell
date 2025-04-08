@@ -65,12 +65,9 @@
   * @{
   */
 
-#define STORAGE_LUN_NBR                   1
-//#define STORAGE_BLK_NBR                   33554432  //(0x40000)  // Anzahl der Blöcke
-//#define STORAGE_BLK_SIZ                   (512)      // Blockgröße in Byte
-
-#define STORAGE_BLK_NBR                   (4194304)   //(0x40000)  // Anzahl der Blöcke
-#define STORAGE_BLK_SIZ                   (4096)      // Blockgröße in Byte
+#define STORAGE_LUN_NBR                  1
+#define STORAGE_BLK_NBR                  0x10000
+#define STORAGE_BLK_SIZ                  0x200
 
 /* USER CODE BEGIN PRIVATE_DEFINES */
 

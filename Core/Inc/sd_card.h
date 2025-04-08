@@ -22,6 +22,8 @@ typedef struct {
     float x;
     float y;
     float z;
+    float pitch;
+    float roll;
 } AccelData;
 
 /* Exported constants --------------------------------------------------------*/
@@ -34,12 +36,13 @@ typedef struct {
 
 
 /* Private defines -----------------------------------------------------------*/
-bool SDCard_WriteAccelData(void);
-FRESULT SDCard_AccelOperations(void);
+bool SDCard_sd_add_data(void);
+bool sd_add_accel_data(AccelData data);
+FRESULT sd_write_read_test(void);
 
-FRESULT WriteAccelData(const char* filename, AccelData* data);
+FRESULT sd_add_data(const char* filename, AccelData* data);
 
-FRESULT ReadAccelData(const char* filename);
+FRESULT sd_read_data(const char* filename);
 
 void myprintf(const char *fmt, ...);
 

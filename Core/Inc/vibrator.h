@@ -1,19 +1,17 @@
-#ifndef __ADXL345_H
-#define __ADXL345_H
+#ifndef __VIBRATOR_H
+#define __VIBRATOR_H
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 /* Includes ------------------------------------------------------------------*/
-#include <stdint.h>
-#include <stddef.h>
 #include "main.h"
 /* Private includes ----------------------------------------------------------*/
 
 
 /* Exported types ------------------------------------------------------------*/
-extern I2C_HandleTypeDef hi2c1;
+extern TIM_HandleTypeDef htim2;
 
 /* Exported constants --------------------------------------------------------*/
 
@@ -22,20 +20,14 @@ extern I2C_HandleTypeDef hi2c1;
 
 
 /* Exported functions prototypes ---------------------------------------------*/
+//void vibrator_pwm_pulses(uint32_t pulses);
+void vibrator_enable();
+void vibrator_disable();
 
+void vibrator_pwm_pulses(uint32_t f_pulses, uint32_t f_high_time_ms, uint32_t f_low_time_ms);
+void TIM2_IRQHandler_Callback(void);
 
 /* Private defines -----------------------------------------------------------*/
-static void adxl_write_reg (uint8_t Reg, uint8_t Byte);
-static void adxl_read (uint8_t Reg, uint8_t *Buffer, size_t len);
-
-void adxl_init (void);
-void adxl_enable();
-void adxl_disable();
-void adxl_getXYZ(float *x, float *y, float *z);
-void adxl_getAngle(float *pitch, float *roll);
-void EXTI9_5_IRQHandler_Callback(void);
-
-
 
 
 #ifdef __cplusplus

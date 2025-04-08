@@ -28,22 +28,18 @@ typedef enum {
 
 
 /* Exported macro ------------------------------------------------------------*/
-// Zustandsmaschine für die Vibration
+// State definitions
+typedef enum {
+    SHORT_PRESS,
+    LONG_PRESS,
+    DOUBLE_PRESS,
+    NO_PRESS
+} ButtonPressState;
 
 
 /* Exported functions prototypes ---------------------------------------------*/
-void getButtonState(vibration_functions_t *vib_func);
-
-void HAL_GPIO_EXTI0_Callback(uint16_t GPIO_Pin);
-
-void start_vibration();
-
-void stop_vibration();
-
-// Diese Funktion überprüft, ob die Verzögerung abgelaufen ist
-int is_delay_done(uint32_t duration);
-
-void button_systick(void);
+void EXTI0_IRQHandler_Callback(void);
+ButtonPressState button_get_state(void);
 
 /* Private defines -----------------------------------------------------------*/
 

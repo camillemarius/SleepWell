@@ -23,14 +23,12 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-//ADXL345
-#include "adxl345.h"
+  #include "adxl345.h"
+  #include "sd_card.h"
+  #include "button.h"
+  #include "vibrator.h"
+  #include "rtc.h"
 
-//SD-Card
-#include "sd_card.h"
-
-//button
-#include "button.h"
 
 /* USER CODE END Includes */
 
@@ -53,9 +51,15 @@ void myprintf(const char *fmt, ...);
 /* Private variables ---------------------------------------------------------*/
 I2C_HandleTypeDef hi2c1;
 
+RTC_HandleTypeDef hrtc;
+
 SPI_HandleTypeDef hspi1;
 
+TIM_HandleTypeDef htim2;
+
 /* USER CODE BEGIN PV */
+static bool sleepObservation = false;
+
 
 /* USER CODE END PV */
 
@@ -64,12 +68,57 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_SPI1_Init(void);
+static void MX_TIM2_Init(void);
+static void MX_RTC_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+void configurePA0ForWakeup(void) {
+    // Aktivieren der GPIOA-Taktrate
+    __HAL_RCC_GPIOA_CLK_ENABLE();
+
+    // PA0 als Eingang konfigurieren
+    GPIO_InitTypeDef GPIO_InitStruct = {0};
+    GPIO_InitStruct.Pin = Taster_EXTI0_Pin;
+    GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    HAL_GPIO_Init(Taster_EXTI0_GPIO_Port, &GPIO_InitStruct);
+
+    // PA0 als Wakeup-Pin für Standby-Modus konfigurieren
+    HAL_PWR_EnableWakeUpPin(PWR_WAKEUP_PIN1);  // Setze PA0 als Wakeup-Pin
+}
+
+
+void enterStandbyMode(void) {
+    
+  // Deaktiviere alle Interrupts, die nicht benötigt werden
+    __disable_irq();
+    HAL_SuspendTick();
+
+
+    // Aktivieren der GPIOA-Taktrate
+    __HAL_RCC_GPIOA_CLK_ENABLE();
+
+    // PA0 als Eingang konfigurieren
+    GPIO_InitTypeDef GPIO_InitStruct = {0};    
+    GPIO_InitStruct.Pin = Taster_EXTI0_Pin;
+    GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    HAL_GPIO_Init(Taster_EXTI0_GPIO_Port, &GPIO_InitStruct);
+
+    // Enable and set EXTI line 0 interrupt priority
+    HAL_NVIC_SetPriority(EXTI0_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(EXTI0_IRQn);
+    
+
+    // Setze den Standby-Modus
+    HAL_PWR_EnterSTANDBYMode();  // System in Standby-Modus versetzen
+
+    // Dieser Punkt wird nicht erreicht, da das System im Standby-Modus wartet, bis ein Wakeup-Ereignis auftritt
+}
 
 /* USER CODE END 0 */
 
@@ -108,14 +157,14 @@ int main(void)
     Error_Handler();
   }
   MX_USB_Device_Init();
+  MX_TIM2_Init();
+  MX_RTC_Init();
   /* USER CODE BEGIN 2 */
-      ADXL_Init();  // initialize adxl
-
-      HAL_Delay(1000); //a short delay is important to let the SD card settle
-
-      //SDCard_AccelOperations();
-
-
+      rtc_set_time_from_compile();
+      adxl_init();
+      vibrator_pwm_pulses(2,150,300);
+      //a short delay is important to let the SD card settle
+      HAL_Delay(1000); 
 
   /* USER CODE END 2 */
 
@@ -126,36 +175,48 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-        HAL_Delay (50);
-        // Create an accelerometer reading example
-        //AccelData data = {1.23f, 4.56f, 7.89f};
-
-        
-
-
-        /*switch( getButtonEvent() )
-        {
-            case NO_PRESS :     { ... } break ;
-            case SINGLE_PRESS : { ... } break ;
-            case LONG_PRESS :   { ... } break ;
-            case DOUBLE_PRESS : { ... } break ;
-        }*/
-
-
-      button_systick();
-      
-      static vibration_functions_t vibration_function = VIBRATION_STATE_NONE;
-      getButtonState(&vibration_function);
-      if(vibration_function == VIBRATION_STATE_SHORT) {
-        // Write the accelerometer data with timestamp to the SD card
-        bool status = SDCard_WriteAccelData();
-        if(status != false) {
-          ;
+        HAL_Delay (1000);
+        // save Accel data to SD card
+        if(sleepObservation == true) {
+          AccelData data;;
+          adxl_getAngle(&data.pitch, &data.roll);
+          adxl_getXYZ(&data.x, &data.y, &data.z);
+          sd_add_data("accel.csv", &data);
+          HAL_Delay (4000);
         }
-      } else if (vibration_function == VIBRATION_STATE_DOUBLE) {
-        ;
-      }
 
+
+
+        // Button handling
+        switch(button_get_state())
+        {
+            case NO_PRESS : {
+              ;
+            } 
+            break ;
+            
+            case SHORT_PRESS : {
+              //HAL_PWR_EnterSTANDBYMode();
+              //NVIC_SystemReset();
+            } 
+            break ;
+
+            case DOUBLE_PRESS : {
+            } 
+            break;
+            
+            case LONG_PRESS :   {
+              sleepObservation ^= 1;
+              if(sleepObservation == true) {
+                vibrator_enable();
+                adxl_enable();
+              } else {
+                vibrator_disable();
+                adxl_disable();
+              }
+            } 
+            break ;
+        }
   }
   /* USER CODE END 3 */
 }
@@ -176,9 +237,11 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI|RCC_OSCILLATORTYPE_HSI48;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI|RCC_OSCILLATORTYPE_HSI48
+                              |RCC_OSCILLATORTYPE_LSI;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
   RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+  RCC_OscInitStruct.LSIState = RCC_LSI_ON;
   RCC_OscInitStruct.HSI48State = RCC_HSI48_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
@@ -256,6 +319,72 @@ static void MX_I2C1_Init(void)
 }
 
 /**
+  * @brief RTC Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_RTC_Init(void)
+{
+
+  /* USER CODE BEGIN RTC_Init 0 */
+
+  /* USER CODE END RTC_Init 0 */
+
+  RTC_TimeTypeDef sTime = {0};
+  RTC_DateTypeDef sDate = {0};
+
+  /* USER CODE BEGIN RTC_Init 1 */
+
+  /* USER CODE END RTC_Init 1 */
+
+  /** Initialize RTC Only
+  */
+  hrtc.Instance = RTC;
+  hrtc.Init.HourFormat = RTC_HOURFORMAT_24;
+  hrtc.Init.AsynchPrediv = 127;
+  hrtc.Init.SynchPrediv = 255;
+  hrtc.Init.OutPut = RTC_OUTPUT_DISABLE;
+  hrtc.Init.OutPutRemap = RTC_OUTPUT_REMAP_NONE;
+  hrtc.Init.OutPutPolarity = RTC_OUTPUT_POLARITY_HIGH;
+  hrtc.Init.OutPutType = RTC_OUTPUT_TYPE_OPENDRAIN;
+  hrtc.Init.OutPutPullUp = RTC_OUTPUT_PULLUP_NONE;
+  if (HAL_RTC_Init(&hrtc) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /* USER CODE BEGIN Check_RTC_BKUP */
+
+  /* USER CODE END Check_RTC_BKUP */
+
+  /** Initialize RTC and set the Time and Date
+  */
+  sTime.Hours = 0;
+  sTime.Minutes = 0;
+  sTime.Seconds = 0;
+  sTime.SubSeconds = 0;
+  sTime.DayLightSaving = RTC_DAYLIGHTSAVING_NONE;
+  sTime.StoreOperation = RTC_STOREOPERATION_RESET;
+  if (HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BIN) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sDate.WeekDay = RTC_WEEKDAY_TUESDAY;
+  sDate.Month = RTC_MONTH_APRIL;
+  sDate.Date = 8;
+  sDate.Year = 25;
+
+  if (HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BIN) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN RTC_Init 2 */
+
+  /* USER CODE END RTC_Init 2 */
+
+}
+
+/**
   * @brief SPI1 Initialization Function
   * @param None
   * @retval None
@@ -296,6 +425,51 @@ static void MX_SPI1_Init(void)
 }
 
 /**
+  * @brief TIM2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM2_Init(void)
+{
+
+  /* USER CODE BEGIN TIM2_Init 0 */
+
+  /* USER CODE END TIM2_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM2_Init 1 */
+
+  /* USER CODE END TIM2_Init 1 */
+  htim2.Instance = TIM2;
+  htim2.Init.Prescaler = 4999;
+  htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim2.Init.Period = 2559;
+  htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV2;
+  htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
+  if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM2_Init 2 */
+
+  /* USER CODE END TIM2_Init 2 */
+
+}
+
+/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
@@ -331,11 +505,11 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : Taster_EXTI0_Pin UVLO_CTR_EXTI8_Pin */
-  GPIO_InitStruct.Pin = Taster_EXTI0_Pin|UVLO_CTR_EXTI8_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  /*Configure GPIO pin : Taster_EXTI0_Pin */
+  GPIO_InitStruct.Pin = Taster_EXTI0_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+  HAL_GPIO_Init(Taster_EXTI0_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : SPI1_SD_CS_Pin */
   GPIO_InitStruct.Pin = SPI1_SD_CS_Pin;
@@ -349,6 +523,12 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : UVLO_CTR_EXTI8_Pin */
+  GPIO_InitStruct.Pin = UVLO_CTR_EXTI8_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(UVLO_CTR_EXTI8_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pins : ADXL_INT1_EXTI5_Pin ADXL_INT2_EXTI6_Pin */
   GPIO_InitStruct.Pin = ADXL_INT1_EXTI5_Pin|ADXL_INT2_EXTI6_Pin;

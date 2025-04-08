@@ -30,11 +30,15 @@ target_include_directories(stm32cubemx INTERFACE
 target_sources(stm32cubemx INTERFACE
     ../../Core/Src/main.c
 
+    
     ../../Core/Src/sensors/adxl345.c
     ../../Core/Src/memory/sd_card.c
+    ../../Core/Src/rtc/rtc.c
     ../../FATFS/Target/user_diskio_spi.c
     ../../Core/Src/button/button.c
+    ../../Core/Src/vibrator/vibrator.c
 
+    
     ../../Core/Src/stm32g4xx_it.c
     ../../Core/Src/stm32g4xx_hal_msp.c
     ../../USB_Device/Target/usbd_conf.c
@@ -61,8 +65,12 @@ target_sources(stm32cubemx INTERFACE
     ../../Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_cortex.c
     ../../Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_i2c.c
     ../../Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_i2c_ex.c
+    ../../Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_rtc.c
+    ../../Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_rtc_ex.c
     ../../Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_spi.c
     ../../Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_spi_ex.c
+    ../../Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_tim.c
+    ../../Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_tim_ex.c
     ../../Core/Src/system_stm32g4xx.c
     ../../Middlewares/Third_Party/FatFs/src/diskio.c
     ../../Middlewares/Third_Party/FatFs/src/ff.c

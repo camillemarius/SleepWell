@@ -1,24 +1,47 @@
+/* Includes ------------------------------------------------------------------*/
 #include "adxl345.h"
 #include <math.h> // Include math.h for trigonometric functions
+#include "vibrator.h"
+
+/* Private includes ----------------------------------------------------------*/
+
+/* Private typedef -----------------------------------------------------------*/
 
 
+/* Private define ------------------------------------------------------------*/
+
+
+/* Private macro -------------------------------------------------------------*/
 #define ADXL345_I2C_ADDR 0xA6
 
+/* Private variables ---------------------------------------------------------*/
+// (Beschleunigung)
+static float xg=0;
+static float yg=0;
+static float zg=0;
 
-void ADXL_Write_Reg (uint8_t Reg, uint8_t Byte)
+// pitch and roll
+static float pitch=0;
+static float roll=0;
+
+/* Private function prototypes -----------------------------------------------*/
+
+
+/* Private user code ---------------------------------------------------------*/
+void adxl_write_reg (uint8_t Reg, uint8_t Byte)
 {
 	HAL_I2C_Mem_Write(&hi2c1, ADXL345_I2C_ADDR, Reg, 1, &Byte, 1, 100);
 }
 
-void ADXL_Read (uint8_t Reg, uint8_t *Buffer, size_t len)
+void adxl_read (uint8_t Reg, uint8_t *Buffer, size_t len)
 {
 	HAL_I2C_Mem_Read (&hi2c1, ADXL345_I2C_ADDR, Reg, 1, Buffer, len, 2000);
 }
 
-void ADXL_Init (void)
+void adxl_init (void)
 {
 	uint8_t chipID=0;
-	ADXL_Read(0x00, &chipID, 1);
+	adxl_read(0x00, &chipID, 1);
 	if (chipID == 0xE5)
 	{
         // ADXL345 Register
@@ -44,12 +67,12 @@ void ADXL_Init (void)
 
 
         uint8_t data = 0x00; 
+        //HAL_I2C_Mem_Write(&hi2c1, ADXL345_I2C_ADDR, ADXL345_POWER_CTL, 1, &data, 1, HAL_MAX_DELAY);
+
+        data = 0x18;  // Bit 3,4 Autosleep und Measure aktivieren
         HAL_I2C_Mem_Write(&hi2c1, ADXL345_I2C_ADDR, ADXL345_POWER_CTL, 1, &data, 1, HAL_MAX_DELAY);
-        data = 16;
-        HAL_I2C_Mem_Write(&hi2c1, ADXL345_I2C_ADDR, ADXL345_POWER_CTL, 1, &data, 1, HAL_MAX_DELAY);
-        data = 0x08;  // Bit 3 (Measure) setzen
-        HAL_I2C_Mem_Write(&hi2c1, ADXL345_I2C_ADDR, ADXL345_POWER_CTL, 1, &data, 1, HAL_MAX_DELAY);
-        data = 0;
+
+        data = 0x00; // Deactivate all of the following register bits for initialization
         HAL_I2C_Mem_Write(&hi2c1, ADXL345_I2C_ADDR, ADXL345_DATA_FORMAT, 1, &data, 1, HAL_MAX_DELAY);
         HAL_I2C_Mem_Write(&hi2c1, ADXL345_I2C_ADDR, ADXL345_INT_ENABLE, 1, &data, 1, HAL_MAX_DELAY);
         HAL_I2C_Mem_Write(&hi2c1, ADXL345_I2C_ADDR, ADXL345_INT_MAP, 1, &data, 1, HAL_MAX_DELAY);
@@ -61,9 +84,10 @@ void ADXL_Init (void)
         HAL_I2C_Mem_Write(&hi2c1, ADXL345_I2C_ADDR, ADXL345_THRESH_TAP, 1, &data, 1, HAL_MAX_DELAY);
         HAL_I2C_Mem_Write(&hi2c1, ADXL345_I2C_ADDR, ADXL345_TAP_AXES, 1, &data, 1, HAL_MAX_DELAY);
         HAL_I2C_Mem_Write(&hi2c1, ADXL345_I2C_ADDR, ADXL345_WINDOW, 1, &data, 1, HAL_MAX_DELAY);
-        ADXL_Read(ADXL345_INT_SOURCE, &data, 1); 
+        //Clear Interrupts
+        adxl_read(ADXL345_INT_SOURCE, &data, 1); 
         HAL_I2C_Mem_Write(&hi2c1, ADXL345_I2C_ADDR, ADXL345_FIFO_CTL, 1, &data, 1, HAL_MAX_DELAY);
-        HAL_I2C_Mem_Write(&hi2c1, ADXL345_I2C_ADDR, ADXL345_FIFO_STATUS, 1, &data, 1, HAL_MAX_DELAY);
+        //HAL_I2C_Mem_Write(&hi2c1, ADXL345_I2C_ADDR, ADXL345_FIFO_STATUS, 1, &data, 1, HAL_MAX_DELAY);
 
 
         
@@ -78,24 +102,20 @@ void ADXL_Init (void)
         //--------------------------------------------------------------------------------------------
         // -- Konfiguration
         //--------------------------------------------------------------------------------------------
-        // Setze die Datenrate (100 Hz)
-        data = 0x17;//0x08;  // 50 Hz
+        data = 0x15;// Setze die Datenrate (3.13 Hz)
         HAL_I2C_Mem_Write(&hi2c1, ADXL345_I2C_ADDR, ADXL345_BW_RATE, 1, &data, 1, HAL_MAX_DELAY);
-
-        // Setze das Datenformat für 10 Bit und ±4g
-        data = 0x01;  // 0x01 für 10 Bit und ±4g
+        
+        data = 0x00; // Setze das Datenformat für 10 Bit und ±2g
         HAL_I2C_Mem_Write(&hi2c1, ADXL345_I2C_ADDR, ADXL345_DATA_FORMAT, 1, &data, 1, HAL_MAX_DELAY);
 
         
         //--------------------------------------------------------------------------------------------
         // -- Activity/Inactivity Konfiguration
         //--------------------------------------------------------------------------------------------
-        // Konfiguriere die Achsen für Activity/Inactivity
-        data = 0X90;//0xF0;
+        data = 0X20; // Konfiguriere die Y-Achse für Activity erkennung in dc-coupled operation
         HAL_I2C_Mem_Write(&hi2c1, ADXL345_I2C_ADDR, ADXL345_ACT_INACT_CTL, 1, &data, 1, HAL_MAX_DELAY);
 
-        // Setze den Aktivitätsschwellenwert (z. B. 20 mg)
-        data = 10;//40;//75;  
+        data = 1;//40;//75;  // Setze den Aktivitätsschwellenwert (X *(62.5mg/LSB))
         HAL_I2C_Mem_Write(&hi2c1, ADXL345_I2C_ADDR, ADXL345_THRESH_ACT, 1, &data, 1, HAL_MAX_DELAY);
 
 
@@ -110,12 +130,12 @@ void ADXL_Init (void)
         data = 0x00;  // Interrupts auf INT1 lassen (Standard)
         HAL_I2C_Mem_Write(&hi2c1, ADXL345_I2C_ADDR, ADXL345_INT_MAP, 1, &data, 1, HAL_MAX_DELAY);
 
-         // Lese und lösche das Interrupt-Source Register
+        // Lese und lösche das Interrupt-Source Register
         data = 0x00;
-        ADXL_Read(ADXL345_INT_SOURCE, &data, 1); 
+        adxl_read(ADXL345_INT_SOURCE, &data, 1); 
       
         // Setze den Sensor in den Messmodus
-        //data = 0x08;  // Bit 3 (Measure) setzen
+        //data = 0x18;  // Bit 3 (Measure) setzen
         //HAL_I2C_Mem_Write(&hi2c1, ADXL345_I2C_ADDR, ADXL345_POWER_CTL, 1, &data, 1, HAL_MAX_DELAY);
 	
     }
@@ -126,38 +146,32 @@ void ADXL_Init (void)
 
 }
 
-void ADXL345_GetXYZ(float *x, float *y, float *z) {
-    uint8_t RxData[6];
-    ADXL_Read(0x32, RxData, 6);
-    *x = ((RxData[1] << 8) | RxData[0]) * 0.0078;
-    *y = ((RxData[3] << 8) | RxData[2]) * 0.0078;
-    *z = ((RxData[5] << 8) | RxData[4]) * 0.0078;
+void adxl_enable() {
+    uint8_t data = 0x08;  // Set bit 3 to enable measurement mode
+    HAL_I2C_Mem_Write(&hi2c1, ADXL345_I2C_ADDR, ADXL345_POWER_CTL, 1, &data, 1, HAL_MAX_DELAY);
 }
 
-void ADXL345_GetAngle(float *pitch, float *roll) {
-    uint8_t RxData[10];
-    float xg, yg, zg;
+void adxl_disable() {
+    uint8_t data = 0x00;  // Clear bit 3 to put the sensor in standby mode
+    HAL_I2C_Mem_Write(&hi2c1, ADXL345_I2C_ADDR, ADXL345_POWER_CTL, 1, &data, 1, HAL_MAX_DELAY);
+}
 
-    ADXL_Read(0x32, RxData, 6);
-    int16_t RAWX = ((RxData[1]<<8)|RxData[0]);
-    int16_t RAWY = ((RxData[3]<<8)|RxData[2]);
-    int16_t RAWZ = ((RxData[5]<<8)|RxData[4]);
+void adxl_getXYZ(float *l_x, float *l_y, float *l_z) {
+    *l_x = xg;
+    *l_y = yg;
+    *l_z = zg;
+}
 
-    xg = RAWX * .0078;
-    yg = RAWY * .0078;
-    zg = RAWZ * .0078;
-
-    // Calculate pitch and roll
-    *pitch = atan2(yg, sqrt(xg * xg + zg * zg)) * (180.0f / M_PI);
-    *roll = atan2(xg, sqrt(yg * yg + zg * zg)) * (180.0f / M_PI);      
+void adxl_getAngle(float *l_pitch, float *l_roll) {
+    *l_pitch = pitch;
+    *l_roll = roll;      
 }
 
 // Interrupt service routine (ISR) for INT1 pin
-void ADXL345_InterruptHandler(void)
+void EXTI9_5_IRQHandler_Callback(void)
 {
-    
     uint8_t RxData[6];
-    ADXL_Read(0x32, RxData, 6);  // Lese Daten vom ADXL345
+    adxl_read(0x32, RxData, 6);  // Lese Daten vom ADXL345
 
     // Verarbeite die Daten und prüfe z.B. den X-Wert
     int16_t RAWX = ((RxData[1] << 8) | RxData[0]);
@@ -165,28 +179,24 @@ void ADXL345_InterruptHandler(void)
     int16_t RAWZ = ((RxData[5] << 8) | RxData[4]);
 
     // Umrechnung der Rohdaten in 'g' (Beschleunigung)
-    float xg = RAWX * 0.0078;
-    float yg = RAWY * 0.0078;
-    float zg = RAWZ * 0.0078;
+    xg = RAWX * 0.0078;
+    yg = RAWY * 0.0078;
+    zg = RAWZ * 0.0078;
 
 
     // Calculate pitch and roll
-    float pitch = atan2(yg, sqrt(xg * xg + zg * zg)) * (180.0f / M_PI);
-    float roll = atan2(xg, sqrt(yg * yg + zg * zg)) * (180.0f / M_PI);  
+    pitch = atan2(yg, sqrt(xg * xg + zg * zg)) * (180.0f / M_PI);
+    roll = atan2(xg, sqrt(yg * yg + zg * zg)) * (180.0f / M_PI);  
 
     // Überprüfe, ob der X-Wert den Schwellenwert überschreitet
     if (roll > 40 || roll < -40)
     {
-    // Beispiel: Schalte eine LED oder setze eine andere Aktion
-        //HAL_GPIO_WritePin(LED1_Output_GPIO_Port, LED1_Output_Pin, GPIO_PIN_RESET);
-        HAL_GPIO_WritePin(IO_VIBRATOR_GPIO_Port, IO_VIBRATOR_Pin, GPIO_PIN_RESET);
-    } else {
 
-        //HAL_GPIO_WritePin(LED1_Output_GPIO_Port, LED1_Output_Pin, GPIO_PIN_SET);
-        HAL_GPIO_WritePin(IO_VIBRATOR_GPIO_Port, IO_VIBRATOR_Pin, GPIO_PIN_SET);
+    } else {
+        vibrator_pwm_pulses(1,50,1000);
     }
 
     // Lese das Interrupt-Source-Register, um das Interrupt-Flag zu löschen
     uint8_t interruptSource = 0;
-    ADXL_Read(ADXL345_INT_SOURCE, &interruptSource, 1);  // Lese Interrupt-Source Register
+    adxl_read(ADXL345_INT_SOURCE, &interruptSource, 1);  // Lese Interrupt-Source Register
 }
