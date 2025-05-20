@@ -59,6 +59,7 @@ TIM_HandleTypeDef htim2;
 
 /* USER CODE BEGIN PV */
 static bool sleepObservation = false;
+static bool prev_sleepObservation = false;
 
 
 /* USER CODE END PV */
@@ -160,11 +161,10 @@ int main(void)
   MX_TIM2_Init();
   MX_RTC_Init();
   /* USER CODE BEGIN 2 */
-      rtc_set_time_from_compile();
+      //rtc_set_time_from_compile();
       adxl_init();
-      vibrator_pwm_pulses(2,150,300);
-      //a short delay is important to let the SD card settle
-      HAL_Delay(1000); 
+      vibrator_pwm_pulses(2,500,500);
+      sd_init();
 
   /* USER CODE END 2 */
 
@@ -175,18 +175,22 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-        HAL_Delay (1000);
-        // save Accel data to SD card
-        if(sleepObservation == true) {
-          AccelData data;;
-          adxl_getAngle(&data.pitch, &data.roll);
-          adxl_getXYZ(&data.x, &data.y, &data.z);
-          sd_add_data("accel.csv", &data);
-          HAL_Delay (4000);
-        }
+      static const uint16_t SD_UPDATE_INTERVAL_MS = 5000;
+      static const uint16_t ADXL_UPDATE_INTERVAL_MS = 1000;
+      static const uint16_t BUTTON_UPDATE_INTERVAL_MS = 500;
+      static const uint16_t MAIN_UPDATE_INTERVAL_MS = 500;
 
+      static const uint32_t MAX_COUNT = 5000;  // Maximale Zählergrenze (5000)
+      static uint32_t main_interval_cnt = 0;  // Zähler-Variable
+      static uint32_t tick_1 = 0, tick_2 = 0, tick_3 = 0;  // Zeitstempel für die Funktionen
+      
+      if (main_interval_cnt > MAX_COUNT) {
+        main_interval_cnt = 500; tick_1 = 0; tick_2 = 0; tick_3 = 0;
+      }
 
-
+      // Button Handling
+      if (main_interval_cnt - tick_1 >= BUTTON_UPDATE_INTERVAL_MS) {
+        tick_1 = main_interval_cnt;
         // Button handling
         switch(button_get_state())
         {
@@ -207,16 +211,54 @@ int main(void)
             
             case LONG_PRESS :   {
               sleepObservation ^= 1;
-              if(sleepObservation == true) {
+
+              if(sleepObservation) {
                 vibrator_enable();
-                adxl_enable();
+                vibrator_pwm_pulses(1,500,500);
               } else {
+                vibrator_pwm_pulses(1,1000,500);
+                HAL_Delay(2000);
                 vibrator_disable();
-                adxl_disable();
               }
             } 
             break ;
         }
+      }
+
+      // ADXL345 Handling
+      if (main_interval_cnt - tick_3 >= ADXL_UPDATE_INTERVAL_MS) {
+        tick_3 = main_interval_cnt;
+        
+        if (sleepObservation != prev_sleepObservation) {
+          if (sleepObservation) {
+              adxl_enable();  // Enable ADXL if it's true
+          } else {
+              adxl_disable(); // Disable ADXL if it's false
+          }
+          // Update the previous state to the current state
+          prev_sleepObservation = sleepObservation;
+        } else {
+          if (sleepObservation) {
+            adxl_readDataFromSensor();
+          }
+        }
+      }
+
+      // SD-Card Handling
+      if (main_interval_cnt - tick_2 >= SD_UPDATE_INTERVAL_MS) {
+        tick_2 = main_interval_cnt;
+
+        // save Accel data to SD card
+        if(sleepObservation == true) {
+          AccelData data;;
+          adxl_getAngle(&data.pitch, &data.roll);
+          adxl_getXYZ(&data.x, &data.y, &data.z);
+          sd_add_data(&data);
+        }
+      }
+
+      HAL_Delay (MAIN_UPDATE_INTERVAL_MS);
+      main_interval_cnt+=MAIN_UPDATE_INTERVAL_MS;
   }
   /* USER CODE END 3 */
 }

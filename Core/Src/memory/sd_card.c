@@ -40,7 +40,7 @@ unsigned long GetTimestamp(void) {
   return HAL_GetTick(); // or any other timestamp function you have in your environment
 }
 // Function to write accelerometer data to the SD card
-FRESULT sd_add_data(const char* filename, AccelData* data) {
+FRESULT sd_add_data(AccelData* data) {
     // Initialize SD card
     fres = sd_init();
     if (fres != FR_OK) {
@@ -50,15 +50,36 @@ FRESULT sd_add_data(const char* filename, AccelData* data) {
 
 
     // Get timestamp for the current reading
-    unsigned long timestamp = GetTimestamp();
+    //unsigned long timestamp = GetTimestamp();
     
     char timeData[10];
     char dateData[10];
     rtc_get_time_date(timeData, dateData);
+
+    // Reformat dateData from "dd-mm-yyyy" to "yy-mm-dd"
+    char formattedDate[16];  // "yy-mm-dd" + '\0'
+
+    // Zerlege das ursprüngliche Datum
+    int day, month, year;
+    sscanf(dateData, "%2d-%2d-%4d", &day, &month, &year);
+    snprintf(formattedDate, sizeof(formattedDate), "%02d-%02d-%02d", year % 100, month, day);
+
+
+
+    // Create directory if it doesn't exist
+    f_mkdir("/data");
+
+    // Construct filename from date (e.g., "25-04-15.csv")
+    //char filename[32];
+    //snprintf(filename, sizeof(filename), "%s.csv", dateData);
+
+    // Construct full path with /data directory
+    char fullpath[64];
+    snprintf(fullpath, sizeof(fullpath), "/data/%s.csv", formattedDate);
     
 
     // Open the file for writing (create if it doesn't exist)
-    fres = f_open(&fil, filename, FA_WRITE | FA_OPEN_ALWAYS);
+    fres = f_open(&fil, fullpath, FA_WRITE | FA_OPEN_ALWAYS);
     if (fres != FR_OK) {
         //myprintf("f_open error (%i)\r\n", fres);
         return fres;
@@ -74,8 +95,8 @@ FRESULT sd_add_data(const char* filename, AccelData* data) {
 
     // Prepare the data in CSV format with timestamp (timestamp,x,y,z)
     char buffer[128];
-    int len = snprintf(buffer, sizeof(buffer), "%lu; %d; %d\r\n", timestamp, (int)data->pitch, (int)data->roll);
-    //int len = snprintf(buffer, sizeof(buffer), "%s; %s; %d; %d\r\n", dateData, timeData, (int)data->pitch, (int)data->roll);
+    //int len = snprintf(buffer, sizeof(buffer), "%lu; %d; %d\r\n", timestamp, (int)data->pitch, (int)data->roll);
+    int len = snprintf(buffer, sizeof(buffer), "%s; %s; %d; %d\r\n", dateData, timeData, (int)data->pitch, (int)data->roll);
 
     //dtostrf(3.14159, 6, 4, buffer);  // Converts float to string with 4 decimal places
     //int len = snprintf(buffer, sizeof(buffer), "%lu,%.4f,%.4f,%.4f\r\n", timestamp, data->x, data->y, data->z);
@@ -144,7 +165,7 @@ FRESULT sd_write_read_test(void) {
   AccelData data = {1.23f, 4.56f, 7.89f, 5, 4};
 
   // Write the accelerometer data with timestamp to the SD card
-  fres = sd_add_data("accel.csv", &data);
+  fres = sd_add_data(&data);
   if (fres != FR_OK) {
       return fres;
   }
@@ -180,7 +201,7 @@ bool sd_add_accel_data(AccelData data) {
   
   
     // Write the accelerometer data with timestamp to the SD card
-    fres = sd_add_data("accel.csv", &data);
+    fres = sd_add_data(&data);
     if (fres != FR_OK) {
         return fres;
     }

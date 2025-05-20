@@ -47,24 +47,13 @@ void vibrator_pwm_pulses(uint32_t f_pulses, uint32_t f_high_time_ms, uint32_t f_
 
     // Get the clock frequency for the timer (typically APB1 clock)
     uint32_t timer_clock = HAL_RCC_GetPCLK1Freq();  // Get APB1 clock frequency (for TIM2)
-
-
-
-
     uint32_t prescaler = 255;
 
-
     // Calculate the reload value for the high time (in microseconds)
-    //high_time_reload = (f_high_time_ms*1000) / (prescaler + 1);  // Reload value for high time
-    //high_time_reload = timer_clock/()(f_high_time_ms*1000) / (prescaler + 1);  // Reload value for high time
     high_time_reload = (((timer_clock/(prescaler+1))*f_low_time_ms)/1000)-1;
 
     // Calculate the reload value for the low time (in microseconds)
-    //low_time_reload = (f_low_time_ms*1000) / (prescaler + 1);  // Reload value for low time
     low_time_reload = (((timer_clock/(prescaler+1))*f_high_time_ms)/1000)-1;
-
-
-
 
     // Update the prescaler for the timer
     __HAL_TIM_SET_PRESCALER(&htim2, prescaler);

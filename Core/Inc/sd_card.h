@@ -36,11 +36,13 @@ typedef struct {
 
 
 /* Private defines -----------------------------------------------------------*/
+
+FRESULT sd_init(void);
 bool SDCard_sd_add_data(void);
 bool sd_add_accel_data(AccelData data);
 FRESULT sd_write_read_test(void);
 
-FRESULT sd_add_data(const char* filename, AccelData* data);
+FRESULT sd_add_data(AccelData* data);
 
 FRESULT sd_read_data(const char* filename);
 

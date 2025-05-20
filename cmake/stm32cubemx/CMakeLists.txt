@@ -29,7 +29,6 @@ target_include_directories(stm32cubemx INTERFACE
 
 target_sources(stm32cubemx INTERFACE
     ../../Core/Src/main.c
-
     
     ../../Core/Src/sensors/adxl345.c
     ../../Core/Src/memory/sd_card.c
@@ -38,7 +37,6 @@ target_sources(stm32cubemx INTERFACE
     ../../Core/Src/button/button.c
     ../../Core/Src/vibrator/vibrator.c
 
-    
     ../../Core/Src/stm32g4xx_it.c
     ../../Core/Src/stm32g4xx_hal_msp.c
     ../../USB_Device/Target/usbd_conf.c

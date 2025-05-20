@@ -2,6 +2,8 @@
 /* Includes ------------------------------------------------------------------*/
 #include "rtc.h"
 #include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
 
 /* Private includes ----------------------------------------------------------*/
 
@@ -21,7 +23,7 @@
 
 
 /* Private user code ---------------------------------------------------------*/
-void rtc_set_time_from_compile() {
+/*void rtc_set_time_from_compile() {
     const char* date = __DATE__;  // The compile date, e.g., "Apr 08 2025"
     const char* time = __TIME__;  // The compile time, e.g., "12:34:56"
     
@@ -69,7 +71,53 @@ void rtc_set_time_from_compile() {
     // Set the date and time on the RTC
     HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BCD);
     HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BCD);
+}*/
+
+uint8_t parse_month(const char *month_str) {
+    if (strcmp(month_str, "Jan") == 0) return 1;
+    if (strcmp(month_str, "Feb") == 0) return 2;
+    if (strcmp(month_str, "Mar") == 0) return 3;
+    if (strcmp(month_str, "Apr") == 0) return 4;
+    if (strcmp(month_str, "May") == 0) return 5;
+    if (strcmp(month_str, "Jun") == 0) return 6;
+    if (strcmp(month_str, "Jul") == 0) return 7;
+    if (strcmp(month_str, "Aug") == 0) return 8;
+    if (strcmp(month_str, "Sep") == 0) return 9;
+    if (strcmp(month_str, "Oct") == 0) return 10;
+    if (strcmp(month_str, "Nov") == 0) return 11;
+    if (strcmp(month_str, "Dec") == 0) return 12;
+    return 0;
 }
+
+void rtc_set_time_from_compile(void) {
+    // Parse __DATE__
+    char month_str[4];
+    int day, year;
+    sscanf(__DATE__, "%3s %d %d", month_str, &day, &year);
+    uint8_t month = parse_month(month_str);
+
+    // Parse __TIME__
+    int hour, min, sec;
+    sscanf(__TIME__, "%d:%d:%d", &hour, &min, &sec);
+
+    // Set RTC time
+    RTC_TimeTypeDef sTime = {0};
+    sTime.Hours   = hour;
+    sTime.Minutes = min;
+    sTime.Seconds = sec;
+    HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BIN);
+
+    // Set RTC date
+    RTC_DateTypeDef sDate = {0};
+    sDate.Year  = year - 2000;  // RTC erwartet z. B. 25 statt 2025
+    sDate.Month = month;
+    sDate.Date  = day;
+    sDate.WeekDay = 1; // kann auch ignoriert werden (oder Wochentag-Berechnung ergänzen)
+
+    HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
+}
+
+
 
 void rtc_get_time_date(char *time, char *date)
 {
@@ -86,7 +134,7 @@ void rtc_get_time_date(char *time, char *date)
 
 
   /* Display date Format: dd-mm-yyyy */
-  sprintf((char*)date,"%02d-%02d-%2d",gDate.Date, gDate.Month, 2000 + gDate.Year);
+  sprintf((char*)date,"%02d-%02d-%02d",gDate.Date, gDate.Month, 2000+gDate.Year);
 }
 
 void rtc_set_date (uint8_t year, uint8_t month, uint8_t date, uint8_t day)  // monday = 1
